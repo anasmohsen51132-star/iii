@@ -283,6 +283,43 @@ body.no-custom-cursor .cursor-inner{ display:none; }
 #introBtn:hover{ border-color:var(--rose); background:var(--rose-soft); letter-spacing:.1em; }
 #introBtn:active{ transform:scale(.95); border-color:var(--rose); background:var(--rose-soft); }
 #introBtn:disabled{ opacity:.35; cursor:progress; }
+#introBtn.is-dissolving{
+  transition:opacity .6s var(--ease-in-out), filter .6s var(--ease-in-out), transform .6s var(--ease-in-out);
+  opacity:0; filter:blur(8px); transform:translateY(0) scale(.82);
+}
+.intro-lines.is-dissolving .intro-line{
+  transition:opacity .75s var(--ease-in-out), filter .75s var(--ease-in-out), transform .75s var(--ease-in-out);
+  opacity:0; filter:blur(11px); transform:translateY(-16px) scale(1.04);
+}
+.intro-loading.is-dissolving{ transition:opacity .4s; opacity:0!important; }
+
+#snapCanvas{
+  position:absolute; inset:0; width:100%; height:100%; z-index:2;
+  opacity:0; pointer-events:none; transition:opacity .6s var(--ease-out);
+}
+#snapCanvas.is-active{ opacity:1; }
+.snap-caption{
+  position:absolute; left:50%; top:42%; transform:translate(-50%,55vh) scale(.92);
+  z-index:3; font-family:var(--f-display); font-weight:300; font-style:italic;
+  font-size:clamp(1.05rem,3.4vw,1.6rem); color:var(--ivory); text-align:center;
+  opacity:0; letter-spacing:.02em; margin:0; padding:0 30px; max-width:90vw;
+  text-shadow:0 4px 26px rgba(255,79,125,.4);
+  transition:opacity 1.2s var(--ease-out), transform 1.2s var(--ease-out);
+  pointer-events:none; white-space:nowrap;
+}
+.snap-caption.is-visible{ opacity:1; transform:translate(-50%,55vh) scale(1); }
+.snap-skip{
+  position:absolute; z-index:4; right:max(18px,env(safe-area-inset-right,0px));
+  bottom:max(18px,env(safe-area-inset-bottom,0px));
+  background:transparent; border:1px solid var(--border); color:var(--muted);
+  font-family:var(--f-body); font-size:.72rem; letter-spacing:.05em;
+  padding:9px 16px; border-radius:20px; cursor:pointer; opacity:0; pointer-events:none;
+  transition:opacity .5s, border-color .3s, color .3s;
+}
+.snap-skip.is-visible{ opacity:.65; pointer-events:auto; }
+.snap-skip:hover{ opacity:1; border-color:var(--rose-line); color:var(--ivory); }
+@media (max-width:640px){ .snap-caption{ white-space:normal; font-size:1rem; } }
+@media (prefers-reduced-motion:reduce){ #snapCanvas,.snap-caption,.snap-skip{ display:none; } }
 
 .intro-loading{
   margin-top:1.6em; font-family:var(--f-mono); font-size:.72rem; color:var(--muted);
@@ -863,6 +900,9 @@ body.final-mode #particleCanvas{ opacity:.18; transition:opacity 2s var(--ease-o
     </div>
     <button id="introBtn" type="button">Begin</button>
   </div>
+  <canvas id="snapCanvas" aria-hidden="true"></canvas>
+  <p class="snap-caption" id="snapCaption" aria-hidden="true"></p>
+  <button class="snap-skip" id="snapSkip" type="button">Skip ›</button>
 </div>
 
 <!-- ============================ PRELOADER ============================ -->
@@ -1075,6 +1115,10 @@ const APP_CONFIG = {
     titleBefore:"For ",
     subtitle:"There's something small I want to show you... take your time, scroll slowly."
   },
+
+  // Shown inside the big heart formed by the opening transition, right after
+  // you press Begin. Edit freely.
+  snapCaption:"From Anas, to his moonlight — Injy.",
 
   // ------------------------------------------------------------------------
   // Love lines — used everywhere a photo would otherwise just show a date.
@@ -1497,20 +1541,29 @@ const IntroEngine=(()=>{
   function begin(){
     if(AppState.introDone) return;
     AppState.introDone=true;
-    introEl.classList.add('is-hidden');
-    document.body.classList.remove('lock-scroll');
-    Utils.qs('#siteNav').classList.add('is-active');
-    Utils.qs('#navProgress').classList.add('is-active');
-    Utils.qs('#audioToggle').classList.add('is-active');
-    Utils.qs('#hero').classList.add('is-revealed');
     stopIntroHearts();
+    StorageService.set('visited',true);
     // the click on Begin is a real user gesture, so this is the one guaranteed
     // moment we can start audio without the browser blocking it — use it,
     // unless the person explicitly muted the music on an earlier visit.
     if(StorageService.get('musicPref',null)!=='paused'){ AudioController.play(); }
-    HeartBurstEngine.burst(window.innerWidth/2, window.innerHeight*0.62, 12);
-    setTimeout(()=>{ introEl.setAttribute('aria-hidden','true'); },1200);
-    StorageService.set('visited',true);
+
+    linesEl.classList.add('is-dissolving');
+    btn.classList.add('is-dissolving');
+    Utils.qs('#introLoading').classList.add('is-dissolving');
+
+    function revealHero(){
+      introEl.classList.add('is-hidden');
+      document.body.classList.remove('lock-scroll');
+      Utils.qs('#siteNav').classList.add('is-active');
+      Utils.qs('#navProgress').classList.add('is-active');
+      Utils.qs('#audioToggle').classList.add('is-active');
+      Utils.qs('#hero').classList.add('is-revealed');
+      setTimeout(()=>{ introEl.setAttribute('aria-hidden','true'); },1200);
+    }
+
+    if(AppState.reducedMotion){ setTimeout(revealHero,650); return; }
+    SnapTransitionEngine.play({onComplete:revealHero});
   }
   function init(){
     document.body.classList.add('lock-scroll');
@@ -1620,6 +1673,190 @@ const ParticleEngine=(()=>{
     window.addEventListener('resize',Utils.debounce(()=>{ resize(); makeParticles(); },300));
   }
   return {init};
+})();
+
+/* ============================================================================
+   SNAP TRANSITION ENGINE — the ~15s cinematic that plays right after Begin:
+   the intro dissolves to dust, the dust becomes many small pink hearts,
+   the hearts drift, then rush together into one big heart with a caption.
+   ============================================================================ */
+const SnapTransitionEngine=(()=>{
+  const canvas=Utils.qs('#snapCanvas');
+  const captionEl=Utils.qs('#snapCaption');
+  const skipBtn=Utils.qs('#snapSkip');
+  let ctx,dpr=1,W=0,H=0,particles=[],raf=null,startTime=0,running=false;
+  let onCompleteCb=null,skipped=false,captionShown=false;
+  let dustSprite=null,heartSprite=null,heartCenterX=0,heartCenterY=0;
+
+  // Timeline (ms) — tuned to land the whole spectacle at ~15s
+  const T_MORPH_START=1500, T_MORPH_END=4200;
+  const T_CONVERGE_START=8200, T_CONVERGE_DURATION=4600; // ends 12800
+  const T_SETTLE_END=13400;
+  const T_CAPTION_START=13500;
+  const T_TOTAL=15000;
+
+  function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
+  function easeInCubic(t){ return t*t*t; }
+
+  function drawHeartPath(c,x,y,size){
+    const top=size*0.3;
+    c.beginPath();
+    c.moveTo(x,y+top);
+    c.bezierCurveTo(x,y, x-size/2,y, x-size/2,y+top);
+    c.bezierCurveTo(x-size/2,y+(size+top)/2, x,y+(size+top)/2, x,y+size);
+    c.bezierCurveTo(x,y+(size+top)/2, x+size/2,y+(size+top)/2, x+size/2,y+top);
+    c.bezierCurveTo(x+size/2,y, x,y, x,y+top);
+    c.closePath();
+  }
+
+  function buildSprites(){
+    const dsize=48;
+    dustSprite=document.createElement('canvas'); dustSprite.width=dustSprite.height=dsize;
+    const dctx=dustSprite.getContext('2d');
+    const g=dctx.createRadialGradient(dsize/2,dsize/2,0,dsize/2,dsize/2,dsize/2);
+    g.addColorStop(0,'rgba(232,222,217,.95)');
+    g.addColorStop(.55,'rgba(198,186,180,.45)');
+    g.addColorStop(1,'rgba(198,186,180,0)');
+    dctx.fillStyle=g; dctx.beginPath(); dctx.arc(dsize/2,dsize/2,dsize/2,0,Math.PI*2); dctx.fill();
+
+    const hsize=72;
+    heartSprite=document.createElement('canvas'); heartSprite.width=heartSprite.height=hsize;
+    const hctx=heartSprite.getContext('2d');
+    drawHeartPath(hctx,hsize*0.5,hsize*0.16,hsize*0.62);
+    const grad=hctx.createLinearGradient(0,0,0,hsize);
+    grad.addColorStop(0,'#ff9db5'); grad.addColorStop(1,'#ff4f7d');
+    hctx.fillStyle=grad;
+    hctx.shadowColor='rgba(255,79,125,.85)'; hctx.shadowBlur=9;
+    hctx.fill();
+  }
+
+  // rejection-sample points inside the classic implicit heart curve
+  function heartTargets(n,cx,cy,scale){
+    const pts=[]; let tries=0;
+    while(pts.length<n && tries<n*80){
+      tries++;
+      const x=(Math.random()*2-1)*1.5;
+      const yCanvas=(Math.random()*2-1)*1.5;
+      const Y=-yCanvas;
+      const val=Math.pow(x*x+Y*Y-1,3)-x*x*Math.pow(Y,3);
+      if(val<=0) pts.push({x:cx+x*scale,y:cy+yCanvas*scale});
+    }
+    while(pts.length<n) pts.push({x:cx,y:cy});
+    return pts;
+  }
+
+  function collectOriginPoints(minCount){
+    const els=[...Utils.qsa('.intro-line'),Utils.qs('#introBtn')].filter(Boolean);
+    const rects=els.map(el=>el.getBoundingClientRect()).filter(r=>r.width>4&&r.height>4);
+    const pts=[];
+    if(!rects.length){ pts.push({x:W/2,y:H/2}); return pts; }
+    for(let i=0;i<Math.max(minCount,40);i++){
+      const r=rects[Math.floor(Math.random()*rects.length)];
+      pts.push({x:r.left+Math.random()*r.width,y:r.top+Math.random()*r.height});
+    }
+    return pts;
+  }
+
+  function buildParticles(){
+    const n=AppState.isMobile?110:190;
+    const origins=collectOriginPoints(n);
+    heartCenterX=W/2; heartCenterY=H*0.42;
+    const heartScale=Utils.clamp(Math.min(W,H)*0.16,70,170);
+    const targets=heartTargets(n,heartCenterX,heartCenterY,heartScale);
+    particles=[];
+    for(let i=0;i<n;i++){
+      const o=origins[i%origins.length];
+      particles.push({
+        ox:o.x+(Math.random()*16-8), oy:o.y+(Math.random()*16-8),
+        wanderCX:W*(0.08+Math.random()*0.84),
+        wanderCY:H*(0.12+Math.random()*0.7),
+        wanderR:30+Math.random()*70,
+        wanderSpeed:0.6+Math.random()*1.2,
+        wanderPhase:Math.random()*Math.PI*2,
+        spawnDelay:Math.random()*2600,
+        convergeDelay:Math.random()*900,
+        targetX:targets[i].x, targetY:targets[i].y,
+        size:9+Math.random()*15
+      });
+    }
+  }
+
+  function setupCanvas(){
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth; H=window.innerHeight;
+    canvas.width=W*dpr; canvas.height=H*dpr;
+    canvas.style.width=W+'px'; canvas.style.height=H+'px';
+    ctx=canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function render(elapsed){
+    const trailPhase=elapsed>=T_CONVERGE_START-300 && elapsed<T_SETTLE_END;
+    if(trailPhase){ ctx.fillStyle='rgba(10,6,9,.24)'; ctx.fillRect(0,0,W,H); }
+    else{ ctx.clearRect(0,0,W,H); }
+
+    particles.forEach(p=>{
+      const morphT=Utils.clamp((elapsed-T_MORPH_START)/(T_MORPH_END-T_MORPH_START),0,1);
+      const wanderAngle=p.wanderPhase+elapsed*0.00032*p.wanderSpeed;
+      const wx=p.wanderCX+Math.cos(wanderAngle)*p.wanderR;
+      const wy=p.wanderCY+Math.sin(wanderAngle*1.3)*p.wanderR*0.6;
+      const emitT=Utils.clamp((elapsed-p.spawnDelay)/900,0,1);
+      let x=Utils.lerp(p.ox,wx,easeOutCubic(emitT));
+      let y=Utils.lerp(p.oy,wy,easeOutCubic(emitT));
+      const convT=Utils.clamp((elapsed-T_CONVERGE_START-p.convergeDelay)/T_CONVERGE_DURATION,0,1);
+      if(convT>0){
+        const ce=easeInCubic(convT);
+        x=Utils.lerp(x,p.targetX,ce);
+        y=Utils.lerp(y,p.targetY,ce);
+      }
+      let alpha=Utils.clamp(emitT*1.4,0,1);
+      if(elapsed>T_SETTLE_END) alpha*=0.9+0.1*Math.sin(elapsed*0.004+p.wanderPhase);
+      const s=p.size;
+      if(morphT<1){ ctx.globalAlpha=alpha*(1-morphT); ctx.drawImage(dustSprite,x-s/2,y-s/2,s,s); }
+      if(morphT>0){ const hs=s*1.15; ctx.globalAlpha=alpha*morphT; ctx.drawImage(heartSprite,x-hs/2,y-hs/2,hs,hs); }
+      ctx.globalAlpha=1;
+    });
+
+    if(!captionShown && elapsed>=T_CAPTION_START){
+      captionShown=true;
+      captionEl.textContent=APP_CONFIG.snapCaption||'From Anas, to his moonlight — Injy.';
+      captionEl.classList.add('is-visible');
+      HeartBurstEngine.burst(heartCenterX,heartCenterY,10);
+    }
+  }
+
+  function loop(ts){
+    if(!running) return;
+    const elapsed=ts-startTime;
+    render(elapsed);
+    if(elapsed<T_TOTAL && !skipped){ raf=requestAnimationFrame(loop); }
+    else{ finish(); }
+  }
+
+  function finish(){
+    running=false;
+    cancelAnimationFrame(raf);
+    skipBtn.classList.remove('is-visible');
+    captionEl.classList.remove('is-visible');
+    canvas.classList.remove('is-active');
+    setTimeout(()=>{ onCompleteCb&&onCompleteCb(); },600);
+  }
+
+  function play({onComplete}={}){
+    onCompleteCb=onComplete; skipped=false; captionShown=false;
+    if(AppState.reducedMotion){ onCompleteCb&&onCompleteCb(); return; }
+    setupCanvas();
+    buildSprites();
+    buildParticles();
+    canvas.classList.add('is-active');
+    skipBtn.classList.add('is-visible');
+    skipBtn.onclick=()=>{ skipped=true; };
+    startTime=performance.now();
+    running=true;
+    raf=requestAnimationFrame(loop);
+  }
+
+  return {play};
 })();
 
 /* ============================================================================
