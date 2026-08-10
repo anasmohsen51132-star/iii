@@ -302,7 +302,7 @@ body.no-custom-cursor .cursor-inner{ display:none; }
 }
 #snapCanvas.is-active{ opacity:1; }
 .snap-caption{
-  position:absolute; left:50%; top:42%; transform:translate(-50%,55vh) scale(.92);
+  position:absolute; left:50%; top:42%; transform:translate(-50%,18vh) scale(.92);
   z-index:3; font-family:var(--f-display); font-weight:300; font-style:italic;
   font-size:clamp(1.05rem,3.4vw,1.6rem); color:var(--ivory); text-align:center;
   opacity:0; letter-spacing:.02em; margin:0; padding:0 30px; max-width:90vw;
@@ -310,7 +310,7 @@ body.no-custom-cursor .cursor-inner{ display:none; }
   transition:opacity 1.2s var(--ease-out), transform 1.2s var(--ease-out);
   pointer-events:none; white-space:nowrap;
 }
-.snap-caption.is-visible{ opacity:1; transform:translate(-50%,55vh) scale(1); }
+.snap-caption.is-visible{ opacity:1; transform:translate(-50%,18vh) scale(1); }
 .snap-skip{
   position:absolute; z-index:4; right:max(18px,env(safe-area-inset-right,0px));
   bottom:max(18px,env(safe-area-inset-bottom,0px));
@@ -681,8 +681,8 @@ img.ph-img{ transition:filter .9s var(--ease-out), transform .9s var(--ease-out)
    15b. SCENE 06 — BEST MOMENT (single highlight video)
    ========================================================================== */
 .video-frame{
-  position:relative; margin:clamp(36px,6vh,60px) auto 0; max-width:720px;
-  aspect-ratio:16/10; border:1px solid var(--border-strong); overflow:hidden;
+  position:relative; margin:clamp(28px,5vh,52px) auto 0; width:min(94vw,1320px);
+  max-height:80vh; aspect-ratio:16/10; border:1px solid var(--border-strong); overflow:hidden;
   background:#0a0709; box-shadow:0 30px 70px var(--shadow), 0 0 0 1px var(--rose-soft);
   transition:box-shadow .5s;
 }
@@ -717,7 +717,8 @@ img.ph-img{ transition:filter .9s var(--ease-out), transform .9s var(--ease-out)
   font-style:italic; font-weight:400; font-size:1rem; color:var(--gold-bright); line-height:1.6;
 }
 @media (prefers-reduced-motion:reduce){ .video-play-btn{ animation:none; } }
-@media (max-width:640px){ .video-frame{ aspect-ratio:4/5; margin-top:32px; } .video-play-btn{ width:60px; height:60px; } }
+@media (max-width:640px){ .video-frame{ aspect-ratio:4/5; width:96vw; max-height:74vh; margin-top:28px; } .video-play-btn{ width:60px; height:60px; } }
+@media (min-width:1600px){ .video-frame{ width:min(90vw,1480px); } }
 
 /* ==========================================================================
    16. SCENE 07 — MINI MEMORY CARDS
