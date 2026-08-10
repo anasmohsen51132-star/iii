@@ -25,7 +25,7 @@
   7) Full letter         -> APP_CONFIG.letter
   8) Interactive question-> APP_CONFIG.question
   9) Final scene         -> APP_CONFIG.finalMessage
-  10) Music              -> APP_CONFIG.audio  (put music.mp3 or music.mp4 in assets/)
+  10) Music              -> APP_CONFIG.audio  (file at assets/music.* — any extension)
   11) Colors             -> APP_CONFIG.visual
   12) Love lines/words   -> APP_CONFIG.loveLines / APP_CONFIG.loveWords
                             (shown on every photo instead of a date — this
@@ -1054,9 +1054,19 @@ const APP_CONFIG = {
 
   audio:{
     enabled:true,
-    // Put either music.mp3 or music.mp4 inside assets/.
-    // The player will automatically try MP3 first, then MP4 if needed.
-    sources:["assets/music.mp3","assets/music.mp4"],
+    // Upload your music file as "music.<anything>" inside the assets/ folder —
+    // mp3, mp4, m4a, wav, ogg, aac, whatever your phone/app happened to save
+    // it as. The browser tries these in order and just plays whichever one
+    // it actually finds and can decode, so you never have to touch this list
+    // unless you rename the file to something other than "music".
+    sources:[
+      "assets/music.mp3",
+      "assets/music.mp4",
+      "assets/music.m4a",
+      "assets/music.wav",
+      "assets/music.ogg",
+      "assets/music.aac"
+    ],
     volume:.32
   },
 
@@ -2182,32 +2192,19 @@ const AudioController=(()=>{
 
   function init(){
     if(!APP_CONFIG.audio.enabled){ btn.style.display='none'; return; }
-
-    const sources=Array.isArray(APP_CONFIG.audio.sources)
+    const list=(APP_CONFIG.audio.sources&&APP_CONFIG.audio.sources.length)
       ? APP_CONFIG.audio.sources
       : [APP_CONFIG.audio.source].filter(Boolean);
-    let sourceIndex=0;
-
-    const tryNextSource=()=>{
-      if(sourceIndex>=sources.length){
-        available=false;
-        btn.style.display='none';
-        console.warn('[Injty] no supported audio source found — controls hidden gracefully');
-        return;
-      }
-      audio.src=sources[sourceIndex++];
-      audio.load();
-    };
-
+    list.forEach(src=>{
+      const s=document.createElement('source');
+      s.src=src;
+      audio.appendChild(s);
+    });
+    audio.load();
     audio.addEventListener('error',()=>{
-      tryNextSource();
-    });
-
-    audio.addEventListener('loadedmetadata',()=>{
-      available=true;
-    });
-
-    tryNextSource();
+      available=false; btn.style.display='none';
+      console.warn('[Injty] no playable file found among assets/music.* — controls hidden gracefully');
+    },{once:true});
     btn.addEventListener('click',toggle);
   }
   return {init,play,pause,toggle,duck,unduck};
