@@ -26,11 +26,14 @@
   8) Interactive question-> APP_CONFIG.question
   9) Final scene         -> APP_CONFIG.finalMessage
   10) Music              -> APP_CONFIG.audio  (file at assets/music.* — any extension)
-  11) Colors             -> APP_CONFIG.visual
-  12) Love lines/words   -> APP_CONFIG.loveLines / APP_CONFIG.loveWords
+  11) Best Moment video  -> APP_CONFIG.bestMoment
+                            (file at assets/best-moment.* — any extension,
+                             its own scene, right after the Photo Wall)
+  12) Colors             -> APP_CONFIG.visual
+  13) Love lines/words   -> APP_CONFIG.loveLines / APP_CONFIG.loveWords
                             (shown on every photo instead of a date — this
                              is the "why I love her" text, edit it freely)
-  13) Debug mode         -> APP_CONFIG.debug = true/false
+  14) Debug mode         -> APP_CONFIG.debug = true/false
 
   The photos were pulled from the file you uploaded and are sorted
   automatically by date behind the scenes (so the story stays in order),
@@ -675,7 +678,49 @@ img.ph-img{ transition:filter .9s var(--ease-out), transform .9s var(--ease-out)
 }
 
 /* ==========================================================================
-   15. SCENE 06 — MINI MEMORY CARDS
+   15b. SCENE 06 — BEST MOMENT (single highlight video)
+   ========================================================================== */
+.video-frame{
+  position:relative; margin:clamp(36px,6vh,60px) auto 0; max-width:720px;
+  aspect-ratio:16/10; border:1px solid var(--border-strong); overflow:hidden;
+  background:#0a0709; box-shadow:0 30px 70px var(--shadow), 0 0 0 1px var(--rose-soft);
+  transition:box-shadow .5s;
+}
+.video-frame.is-playing{ box-shadow:0 30px 70px var(--shadow), 0 0 30px 2px var(--rose-soft); }
+.video-frame video{ position:relative; z-index:1; width:100%; height:100%; object-fit:cover; display:block; background:#0a0709; }
+.video-missing{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; padding:20px; text-align:center; color:var(--muted); z-index:0;
+}
+.video-missing span{ font-size:2rem; color:var(--rose-line); }
+.video-missing p{ font-family:var(--f-mono); font-size:.72rem; max-width:34ch; line-height:1.6; }
+.video-missing code{ color:var(--gold-bright); }
+.video-frame.has-video .video-missing{ display:none; }
+.video-play-btn{
+  position:absolute; z-index:2; left:50%; top:50%; transform:translate(-50%,-50%) scale(1);
+  width:72px; height:72px; border-radius:50%; border:1px solid var(--rose-line);
+  background:rgba(19,17,22,.6); backdrop-filter:blur(6px); color:var(--ivory);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:opacity .4s, transform .35s var(--ease-pop), border-color .3s, background .3s;
+  animation:playPulse 2.6s ease-in-out infinite;
+}
+.video-play-btn svg{ margin-left:4px; }
+.video-play-btn:hover{ border-color:var(--rose); background:var(--rose-soft); transform:translate(-50%,-50%) scale(1.08); }
+.video-frame.is-playing .video-play-btn{ opacity:0; pointer-events:none; transform:translate(-50%,-50%) scale(.7); animation:none; }
+.video-frame:not(.has-video) .video-play-btn{ display:none; }
+@keyframes playPulse{
+  0%,100%{ box-shadow:0 0 0 0 var(--rose-soft); }
+  50%{ box-shadow:0 0 0 14px transparent; }
+}
+.video-caption{
+  margin:18px auto 0; text-align:center; max-width:44ch; font-family:var(--f-display);
+  font-style:italic; font-weight:400; font-size:1rem; color:var(--gold-bright); line-height:1.6;
+}
+@media (prefers-reduced-motion:reduce){ .video-play-btn{ animation:none; } }
+@media (max-width:640px){ .video-frame{ aspect-ratio:4/5; margin-top:32px; } .video-play-btn{ width:60px; height:60px; } }
+
+/* ==========================================================================
+   16. SCENE 07 — MINI MEMORY CARDS
    ========================================================================== */
 .cards{ margin-top:clamp(40px,7vh,70px); display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
 .mcard{
@@ -919,7 +964,7 @@ body.final-mode #particleCanvas{ opacity:.18; transition:opacity 2s var(--ease-o
 </div>
 <div class="nav-progress" id="navProgress">
   <div class="nav-progress-label" id="progressLabel">Beginning</div>
-  <div><span class="ltr nav-progress-count" id="progressCount">01 / 10</span></div>
+  <div><span class="ltr nav-progress-count" id="progressCount">01 / 11</span></div>
   <div class="nav-progress-line"><span id="progressLine"></span></div>
 </div>
 
@@ -991,23 +1036,41 @@ body.final-mode #particleCanvas{ opacity:.18; transition:opacity 2s var(--ease-o
     <div class="wall" id="photoWall" data-reveal data-reveal-delay="2"></div>
   </section>
 
-  <!-- SCENE 06 — MINI MEMORIES -->
-  <section class="scene" id="scene-06" data-scene-label="Little Memories">
-    <div class="scene-kicker" data-reveal>SCENE 06 — Little Memories</div>
+  <!-- SCENE 06 — BEST MOMENT (single highlight video) -->
+  <section class="scene scene-video" id="scene-06" data-scene-label="Best Moment">
+    <div class="scene-kicker" data-reveal>SCENE 06 — Best Moment</div>
+    <h2 class="scene-title" data-reveal data-reveal-delay="1" id="bestMomentTitle"></h2>
+    <p class="scene-lede" data-reveal data-reveal-delay="2" id="bestMomentSubtitle"></p>
+    <div class="video-frame" id="bestMomentFrame" data-reveal data-reveal-delay="3">
+      <video id="bestMomentVideo" playsinline preload="metadata"></video>
+      <div class="video-missing" id="bestMomentMissing" aria-hidden="true">
+        <span>♥</span>
+        <p>Drop <code>best-moment.mp4</code> into <code>assets/</code> and this plays here.</p>
+      </div>
+      <button class="video-play-btn" id="bestMomentPlay" type="button" aria-label="Play video">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+    </div>
+    <p class="video-caption" id="bestMomentCaption"></p>
+  </section>
+
+  <!-- SCENE 07 — MINI MEMORIES -->
+  <section class="scene" id="scene-07" data-scene-label="Little Memories">
+    <div class="scene-kicker" data-reveal>SCENE 07 — Little Memories</div>
     <h2 class="scene-title" data-reveal data-reveal-delay="1">Small things… <strong>that were never small to me</strong></h2>
     <div class="cards" id="miniCards" data-reveal data-reveal-delay="2"></div>
   </section>
 
-  <!-- SCENE 07 — SECRET NOTES -->
-  <section class="scene" id="scene-07" data-scene-label="Secret Notes">
-    <div class="scene-kicker" data-reveal>SCENE 07 — Secret Notes</div>
+  <!-- SCENE 08 — SECRET NOTES -->
+  <section class="scene" id="scene-08" data-scene-label="Secret Notes">
+    <div class="scene-kicker" data-reveal>SCENE 08 — Secret Notes</div>
     <h2 class="scene-title" data-reveal data-reveal-delay="1">Open them at your own pace… <strong>no order needed</strong></h2>
     <div class="notes" id="notesGrid" data-reveal data-reveal-delay="2"></div>
   </section>
 
-  <!-- SCENE 08 — LETTER -->
-  <section class="scene" id="scene-08" data-scene-label="The Letter">
-    <div class="scene-kicker" data-reveal>SCENE 08 — The Letter</div>
+  <!-- SCENE 09 — LETTER -->
+  <section class="scene" id="scene-09" data-scene-label="The Letter">
+    <div class="scene-kicker" data-reveal>SCENE 09 — The Letter</div>
     <h2 class="scene-title" data-reveal data-reveal-delay="1" style="text-align:center">Something I wrote for you… <strong>straight from my heart</strong></h2>
     <div class="letter-wrap" data-reveal data-reveal-delay="2">
       <div class="letter-paper">
@@ -1022,9 +1085,9 @@ body.final-mode #particleCanvas{ opacity:.18; transition:opacity 2s var(--ease-o
     </div>
   </section>
 
-  <!-- SCENE 09 — QUESTION -->
-  <section class="scene" id="scene-09" data-scene-label="A Question">
-    <div class="scene-kicker" data-reveal>SCENE 09 — One Simple Question</div>
+  <!-- SCENE 10 — QUESTION -->
+  <section class="scene" id="scene-10" data-scene-label="A Question">
+    <div class="scene-kicker" data-reveal>SCENE 10 — One Simple Question</div>
     <div class="question-box">
       <p class="question-text" data-reveal data-reveal-delay="1" id="questionText"></p>
       <div class="question-answers" id="questionAnswers" data-reveal data-reveal-delay="2"></div>
@@ -1033,8 +1096,8 @@ body.final-mode #particleCanvas{ opacity:.18; transition:opacity 2s var(--ease-o
     </div>
   </section>
 
-  <!-- SCENE 10 — FINAL -->
-  <section class="scene" id="scene-10" data-scene-label="The End">
+  <!-- SCENE 11 — FINAL -->
+  <section class="scene" id="scene-11" data-scene-label="The End">
     <div class="final-inner">
       <div class="final-lines" id="finalLines"></div>
       <div class="final-names" id="finalNames"></div>
@@ -1108,6 +1171,24 @@ const APP_CONFIG = {
       "assets/music.aac"
     ],
     volume:.32
+  },
+
+  // ------------------------------------------------------------------------
+  // Best Moment — a single highlight video, its own scene. Same idea as the
+  // music above: upload it as "best-moment.<anything>" inside assets/ and
+  // it just works, whatever extension your phone happened to save it as.
+  // ------------------------------------------------------------------------
+  bestMoment:{
+    enabled:true,
+    title:"Our <strong>best moment</strong>, on repeat forever.",
+    subtitle:"Press play, and watch it with me again.",
+    caption:"This is the second I knew — this is it, this is the one.",
+    sources:[
+      "assets/best-moment.mp4",
+      "assets/best-moment.mov",
+      "assets/best-moment.webm",
+      "assets/best-moment.m4v"
+    ]
   },
 
   hero:{
@@ -1307,7 +1388,7 @@ const StorageService=(()=>{
    ============================================================================ */
 const AppState={
   currentScene:0,
-  totalScenes:10,
+  totalScenes:11,
   introDone:false,
   audioState:'off', // off | playing | paused
   lightboxOpen:false,
@@ -1686,7 +1767,7 @@ const SnapTransitionEngine=(()=>{
   const skipBtn=Utils.qs('#snapSkip');
   let ctx,dpr=1,W=0,H=0,particles=[],raf=null,startTime=0,running=false;
   let onCompleteCb=null,skipped=false,captionShown=false;
-  let dustSprite=null,heartSprite=null,heartCenterX=0,heartCenterY=0;
+  let dustSprite=null,heartSprites=[],sparkleSprite=null,heartCenterX=0,heartCenterY=0;
 
   // Timeline (ms) — tuned to land the whole spectacle at ~15s
   const T_MORPH_START=1500, T_MORPH_END=4200;
@@ -1697,6 +1778,13 @@ const SnapTransitionEngine=(()=>{
 
   function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
   function easeInCubic(t){ return t*t*t; }
+  // fast accelerating approach for most of the travel, then a tiny springy
+  // overshoot-and-settle right at arrival — this is what sells "speeding up"
+  function convergeEase(t){
+    if(t<=0.88) return easeInCubic(t/0.88)*0.95;
+    const st=(t-0.88)/0.12;
+    return Math.min(0.95+(1-Math.pow(1-st,2))*0.05+Math.sin(st*Math.PI)*0.025,1.02);
+  }
 
   function drawHeartPath(c,x,y,size){
     const top=size*0.3;
@@ -1719,15 +1807,63 @@ const SnapTransitionEngine=(()=>{
     g.addColorStop(1,'rgba(198,186,180,0)');
     dctx.fillStyle=g; dctx.beginPath(); dctx.arc(dsize/2,dsize/2,dsize/2,0,Math.PI*2); dctx.fill();
 
-    const hsize=72;
-    heartSprite=document.createElement('canvas'); heartSprite.width=heartSprite.height=hsize;
-    const hctx=heartSprite.getContext('2d');
-    drawHeartPath(hctx,hsize*0.5,hsize*0.16,hsize*0.62);
-    const grad=hctx.createLinearGradient(0,0,0,hsize);
-    grad.addColorStop(0,'#ff9db5'); grad.addColorStop(1,'#ff4f7d');
-    hctx.fillStyle=grad;
-    hctx.shadowColor='rgba(255,79,125,.85)'; hctx.shadowBlur=9;
+    const stopSets=[
+      ['#ffc2d1','#ff6f94','#ff3d6e'], // classic rose
+      ['#ffd9ec','#ff4fa0','#e6266f'], // hot magenta-pink
+      ['#ffe9b8','#ffb14f','#ff7a45']  // warm gold-blush
+    ];
+    heartSprites=stopSets.map(stops=>buildHeartSprite(stops));
+    sparkleSprite=buildSparkleSprite();
+  }
+
+  function buildHeartSprite(stops){
+    const hsize=96;
+    const cv=document.createElement('canvas'); cv.width=cv.height=hsize;
+    const hctx=cv.getContext('2d');
+    // soft bloom halo beneath the crisp heart, baked into the sprite once
+    hctx.save();
+    hctx.filter='blur(7px)';
+    drawHeartPath(hctx,hsize*0.5,hsize*0.3,hsize*0.5);
+    hctx.fillStyle='rgba(255,140,170,.5)';
     hctx.fill();
+    hctx.restore();
+    // crisp gradient heart on top
+    drawHeartPath(hctx,hsize*0.5,hsize*0.28,hsize*0.46);
+    const grad=hctx.createLinearGradient(0,hsize*0.08,0,hsize*0.92);
+    grad.addColorStop(0,stops[0]); grad.addColorStop(.55,stops[1]); grad.addColorStop(1,stops[2]);
+    hctx.fillStyle=grad;
+    hctx.shadowColor='rgba(255,79,125,.85)'; hctx.shadowBlur=13;
+    hctx.fill();
+    // soft rim highlight for a little extra shine
+    hctx.globalCompositeOperation='source-atop';
+    const rim=hctx.createLinearGradient(0,0,0,hsize*0.5);
+    rim.addColorStop(0,'rgba(255,255,255,.3)'); rim.addColorStop(1,'rgba(255,255,255,0)');
+    hctx.fillStyle=rim; hctx.fillRect(0,0,hsize,hsize);
+    hctx.globalCompositeOperation='source-over';
+    return cv;
+  }
+
+  function buildSparkleSprite(){
+    const ssize=40;
+    const cv=document.createElement('canvas'); cv.width=cv.height=ssize;
+    const sctx=cv.getContext('2d');
+    const cx=ssize/2, cy=ssize/2, spikes=4, outerR=ssize*0.46, innerR=ssize*0.12;
+    sctx.save(); sctx.translate(cx,cy);
+    sctx.beginPath();
+    for(let i=0;i<spikes*2;i++){
+      const r=i%2===0?outerR:innerR;
+      const a=(Math.PI/spikes)*i-Math.PI/2;
+      const px=Math.cos(a)*r, py=Math.sin(a)*r;
+      i===0?sctx.moveTo(px,py):sctx.lineTo(px,py);
+    }
+    sctx.closePath();
+    const grad=sctx.createRadialGradient(0,0,0,0,0,outerR);
+    grad.addColorStop(0,'#fff6da'); grad.addColorStop(.5,'#ffd98a'); grad.addColorStop(1,'rgba(255,217,138,0)');
+    sctx.fillStyle=grad;
+    sctx.shadowColor='rgba(255,214,120,.9)'; sctx.shadowBlur=10;
+    sctx.fill();
+    sctx.restore();
+    return cv;
   }
 
   // rejection-sample points inside the classic implicit heart curve
@@ -1758,7 +1894,7 @@ const SnapTransitionEngine=(()=>{
   }
 
   function buildParticles(){
-    const n=AppState.isMobile?110:190;
+    const n=AppState.isMobile?150:230;
     const origins=collectOriginPoints(n);
     heartCenterX=W/2; heartCenterY=H*0.42;
     const heartScale=Utils.clamp(Math.min(W,H)*0.16,70,170);
@@ -1776,7 +1912,10 @@ const SnapTransitionEngine=(()=>{
         spawnDelay:Math.random()*2600,
         convergeDelay:Math.random()*900,
         targetX:targets[i].x, targetY:targets[i].y,
-        size:9+Math.random()*15
+        size:9+Math.random()*15,
+        isSpark:Math.random()<0.15,
+        spriteIdx:Math.floor(Math.random()*heartSprites.length),
+        _x:o.x,_y:o.y,_alpha:0,_morphT:0
       });
     }
   }
@@ -1790,12 +1929,43 @@ const SnapTransitionEngine=(()=>{
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
 
+  function drawShockwave(elapsed){
+    const rings=[
+      {start:T_CONVERGE_START-100, dur:900, color:'255,79,125'},
+      {start:T_SETTLE_END-200, dur:750, color:'255,214,120'}
+    ];
+    rings.forEach(r=>{
+      const t=(elapsed-r.start)/r.dur;
+      if(t<0||t>1) return;
+      const radius=Utils.lerp(10,Math.max(W,H)*0.5,easeOutCubic(t));
+      const alpha=(1-t)*0.32;
+      ctx.beginPath();
+      ctx.arc(heartCenterX,heartCenterY,radius,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${r.color},${alpha})`;
+      ctx.lineWidth=2;
+      ctx.stroke();
+    });
+  }
+
+  function drawFlash(elapsed){
+    const t=(elapsed-(T_SETTLE_END-150))/500;
+    if(t<0||t>1) return;
+    const alpha=Math.sin(Math.PI*Math.min(t,1))*0.22;
+    const rad=Math.max(W,H)*0.6;
+    const g=ctx.createRadialGradient(heartCenterX,heartCenterY,0,heartCenterX,heartCenterY,rad);
+    g.addColorStop(0,`rgba(255,235,200,${alpha})`);
+    g.addColorStop(1,'rgba(255,235,200,0)');
+    ctx.fillStyle=g;
+    ctx.fillRect(0,0,W,H);
+  }
+
   function render(elapsed){
     const trailPhase=elapsed>=T_CONVERGE_START-300 && elapsed<T_SETTLE_END;
     if(trailPhase){ ctx.fillStyle='rgba(10,6,9,.24)'; ctx.fillRect(0,0,W,H); }
     else{ ctx.clearRect(0,0,W,H); }
 
-    particles.forEach(p=>{
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
       const morphT=Utils.clamp((elapsed-T_MORPH_START)/(T_MORPH_END-T_MORPH_START),0,1);
       const wanderAngle=p.wanderPhase+elapsed*0.00032*p.wanderSpeed;
       const wx=p.wanderCX+Math.cos(wanderAngle)*p.wanderR;
@@ -1805,23 +1975,47 @@ const SnapTransitionEngine=(()=>{
       let y=Utils.lerp(p.oy,wy,easeOutCubic(emitT));
       const convT=Utils.clamp((elapsed-T_CONVERGE_START-p.convergeDelay)/T_CONVERGE_DURATION,0,1);
       if(convT>0){
-        const ce=easeInCubic(convT);
+        const ce=convergeEase(convT);
         x=Utils.lerp(x,p.targetX,ce);
         y=Utils.lerp(y,p.targetY,ce);
       }
       let alpha=Utils.clamp(emitT*1.4,0,1);
       if(elapsed>T_SETTLE_END) alpha*=0.9+0.1*Math.sin(elapsed*0.004+p.wanderPhase);
-      const s=p.size;
-      if(morphT<1){ ctx.globalAlpha=alpha*(1-morphT); ctx.drawImage(dustSprite,x-s/2,y-s/2,s,s); }
-      if(morphT>0){ const hs=s*1.15; ctx.globalAlpha=alpha*morphT; ctx.drawImage(heartSprite,x-hs/2,y-hs/2,hs,hs); }
-      ctx.globalAlpha=1;
-    });
+      p._x=x; p._y=y; p._alpha=alpha; p._morphT=morphT;
+    }
+
+    // pass 1 — dust (normal blend, soft and grounded)
+    ctx.globalCompositeOperation='source-over';
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
+      if(p._morphT<1){
+        ctx.globalAlpha=p._alpha*(1-p._morphT);
+        ctx.drawImage(dustSprite,p._x-p.size/2,p._y-p.size/2,p.size,p.size);
+      }
+    }
+
+    // pass 2 — hearts/sparks (additive blend, this is what makes them glow)
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
+      if(p._morphT>0){
+        ctx.globalAlpha=p._alpha*p._morphT;
+        const hs=p.size*1.15;
+        const sprite=p.isSpark?sparkleSprite:heartSprites[p.spriteIdx];
+        ctx.drawImage(sprite,p._x-hs/2,p._y-hs/2,hs,hs);
+      }
+    }
+    ctx.globalCompositeOperation='source-over';
+    ctx.globalAlpha=1;
+
+    drawShockwave(elapsed);
+    drawFlash(elapsed);
 
     if(!captionShown && elapsed>=T_CAPTION_START){
       captionShown=true;
       captionEl.textContent=APP_CONFIG.snapCaption||'From Anas, to his moonlight — Injy.';
       captionEl.classList.add('is-visible');
-      HeartBurstEngine.burst(heartCenterX,heartCenterY,10);
+      HeartBurstEngine.burst(heartCenterX,heartCenterY,14);
     }
   }
 
@@ -2217,7 +2411,46 @@ const PhotoWallEngine=(()=>{
 })();
 
 /* ============================================================================
-   MINI MEMORY CARDS ENGINE (Scene 06)
+   BEST MOMENT ENGINE (Scene 06) — one highlight video, plays inline
+   ============================================================================ */
+const BestMomentEngine=(()=>{
+  function init(){
+    const cfg=APP_CONFIG.bestMoment;
+    const frame=Utils.qs('#bestMomentFrame');
+    if(!cfg||!frame) return;
+    Utils.qs('#bestMomentTitle').innerHTML=cfg.title||'';
+    Utils.qs('#bestMomentSubtitle').textContent=cfg.subtitle||'';
+    Utils.qs('#bestMomentCaption').textContent=cfg.caption||'';
+    if(!cfg.enabled) return;
+    const video=Utils.qs('#bestMomentVideo');
+    const playBtn=Utils.qs('#bestMomentPlay');
+    (cfg.sources||[]).forEach(src=>{
+      const s=document.createElement('source');
+      s.src=src;
+      video.appendChild(s);
+    });
+    video.load();
+    video.addEventListener('loadedmetadata',()=>{ frame.classList.add('has-video'); },{once:true});
+    video.addEventListener('error',()=>{
+      console.warn('[Injty] no playable file found among assets/best-moment.* — the placeholder stays up gracefully');
+    },{once:true});
+    function play(){
+      video.play().then(()=>{
+        video.setAttribute('controls','controls');
+        frame.classList.add('is-playing');
+        const r=frame.getBoundingClientRect();
+        HeartBurstEngine.burst(r.left+r.width/2,r.top+r.height/2,9);
+      }).catch(()=>{});
+    }
+    playBtn.addEventListener('click',play);
+    video.addEventListener('play',()=>frame.classList.add('is-playing'));
+    video.addEventListener('ended',()=>frame.classList.remove('is-playing'));
+  }
+  return {init};
+})();
+
+/* ============================================================================
+   MINI MEMORY CARDS ENGINE (Scene 07)
    ============================================================================ */
 const MemoryCardsEngine=(()=>{
   function build(){
@@ -2306,7 +2539,7 @@ const LetterEngine=(()=>{
           }
         });
       },{threshold:.3});
-      io.observe(Utils.qs('#scene-08'));
+      io.observe(Utils.qs('#scene-09'));
     }
   }
   return {init};
@@ -2629,6 +2862,7 @@ const ContentRenderer=(()=>{
   ErrorHandling.safe(()=>TimelineEngine.build(),'TimelineEngine');
   ErrorHandling.safe(()=>GalleryEngine.build(),'GalleryEngine');
   ErrorHandling.safe(()=>PhotoWallEngine.build(),'PhotoWallEngine');
+  ErrorHandling.safe(()=>BestMomentEngine.init(),'BestMomentEngine');
   ErrorHandling.safe(()=>MemoryCardsEngine.build(),'MemoryCardsEngine');
   ErrorHandling.safe(()=>NotesEngine.build(),'NotesEngine');
   ErrorHandling.safe(()=>QuestionEngine.build(),'QuestionEngine');
